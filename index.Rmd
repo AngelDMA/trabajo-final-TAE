@@ -1,0 +1,1019 @@
+---
+title: "Segundo Trabajo TAE"
+author: "Angel David Machado"
+date: "16/3/2020"
+output: 
+  html_document: 
+    highlight: tango
+    theme: journal
+---
+## {.tabset .tabset-fade .tabset-pills}
+
+### Capitulo 4 {.tabset .tabset-fade .tabset-pills}
+
+#### 10
+(a)
+
+Debemos de utilizar la base de datos Weekly, esta base de datos contiene información del rendimiento porcentual semanal para el índice bursátil S&P 500 entre 1990 y 2010.
+
+```{r}
+# Se carga la base de datoa a utilizar
+library(ISLR)
+
+```
+
+```{r}
+# Estadístico básicos
+summary(Weekly)
+```
+
+Tenemos una base de datos con 1089 observaciones sobre las siguientes 9 variables.
+
+- Year: El año en que se registró la observación.
+- Lag1: Porcentaje de retorno de la semana anterior.
+- Lag2: Porcentaje de retorno de 2 semanas anteriores
+- Lag3: de retorno de 3 semanas anteriores
+- Lag4: Porcentaje de retorno de 4 semanas anteriores
+- Lag5: Porcentaje de retorno de 5 semanas anteriores
+- Volume: Volumen de acciones negociadas (número promedio de acciones diarias negociadas en miles de millones)
+- Today: Porcentaje de retorno para esta semana
+- Direction: Un factor con niveles hacia abajo y hacia arriba que indica si el mercado tuvo un rendimiento positivo o negativo en una semana determinada
+
+```{r}
+library(psych)
+# Gráfico de dispersión
+pairs.panels(Weekly[,-9], 
+             method = "pearson",
+             hist.col = "#00AFBB",
+             density = TRUE,  
+             )
+```
+
+Como podemos apreciar, en general no pareciera que hubiesen muchas variables correlacionadas, pero si podemos apreciar una correlación positiva entre el año y la variable Volume. La variable volume hace referencia al volumen de acciones negociadas (número promedio de acciones diarias negociadas en miles de millones), por lo que a medida que pasa el tiempo, podemos apreciar como se aumenta también el volumen de acciones negociadas.
+
+(b)
+
+Le ejecutamos a todos los datos, utilizando Direction como la variable respuesta y las variables lag más la variable volume como predictoras, una regresión logística
+
+```{r}
+weeklyrlo <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume, data = Weekly, family = "binomial") 
+summary(weeklyrlo)
+
+```
+
+Podemos apreciar que la variable lag2, es la única variables significativa.
+
+(c) 
+
+```{r}
+library("caret")
+predichos=as.factor(ifelse(test = weeklyrlo$fitted.values > 0.5, yes = "Up", no = "Down"))
+verdaderos=as.factor(Weekly$Direction)
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz
+```
+
+|            | Reference  |            |
+| ---------- | ---------- | ---------- |
+| Predicted  | Down       | Up         |
+| Down       | A          | B          |
+| Up         | C          | D          |
+
+- Lo primero que podemos apreciar es que la precisión del modelo es de un 56.11% (Accuracy). 
+- También podemos ver que la sensitividad ($Sensitivity = \frac{A}{A + C}$), es de solamente un 11.15%, lo cual quiere decir que en semanas en donde el mercado es bajista.
+- La especificidad ($Specificity = \frac{D}{B + D}$), es de un 92.06%, es la precisión a la hora de predecir semanas alcistas
+
+(d)
+
+```{r}
+attach(Weekly)
+w_entrenamiento <- (Year <= 2008) 
+```
+
+```{r}
+weeklyrlo2 <- glm(Direction ~ Lag2, data = Weekly, family = "binomial", subset = w_entrenamiento)
+summary(weeklyrlo2)
+```
+
+```{r}
+Weekly.20092010 <- Weekly[!w_entrenamiento, ]
+Direction.20092010 <- Direction[!w_entrenamiento]
+
+p <- predict(weeklyrlo2, Weekly.20092010, type = "response")
+predichos=as.factor(ifelse(test = p > 0.5, yes = "Up", no = "Down"))
+verdaderos=as.factor(Direction.20092010)
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz
+```
+
+- Podemos apreciar que la precisión del modelo es de un 62.50%
+- Cuando la semana del mercado es bajista, la precisión es de un 20.93%
+- Cuando la semana del mercado es alcista, la precisión es de un 91.80%
+
+(e)
+
+```{r}
+library(MASS)
+ldapre <- lda(Direction ~ Lag2, data = Weekly, subset = w_entrenamiento)
+ldapre
+```
+
+```{r}
+pred.lda <- predict(ldapre, Weekly.20092010)
+verdaderos=as.factor(Direction.20092010)
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz
+
+```
+
+- La precisión de este modelo es de 62.50%
+- Cuando en la semana el mercado es bajista la precisión es de 20.93%
+- Cuando en la semana el mercado es alcista la precisión es de 91.80%
+
+```{r}
+qdapre <- qda(Direction ~ Lag2, data = Weekly, subset = w_entrenamiento)
+qdapre
+```
+
+```{r}
+pred.qda <- predict(qdapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.qda$class, verdaderos)
+matriz
+```
+
+- En este caso la predicción del modelo es de un 58.65%
+- La precisión cuando es mercado es bajista es de un 0%
+- La precisión cuando el mercado es alcista es de un 100%
+
+(g)
+
+```{r}
+library(class)
+entrenamiento.x <- as.matrix(Lag2[w_entrenamiento])
+prueba.x <- as.matrix(Lag2[!w_entrenamiento])
+entrenamiento.Direction <- Direction[w_entrenamiento]
+pred.knn <- knn(entrenamiento.x, prueba.x, entrenamiento.Direction, k = 1)
+confusionMatrix(pred.knn, Direction.20092010)
+```
+
+- La precisión del modelo es de un 50%
+- Cuando el mercado es bajista la precisión es de un 48.84%
+- Cuando el mercado es alcista la precisión es de un 50.82%
+
+(h)
+Si analizamos las precisiones de los modelos obtuvimos los siguientes resultados:
+
+|  | GLN | LDA | QDA | KNN |
+| - | - | - | - | - |
+| Precisión | 62.5 | 62.5 | 58.65 | 50 |
+| Sensitividad | 20.93 | 20.93 | 0 | 48.84 |
+| Especificidad | 91.80 | 91.80 | 100 | 50.82 |
+
+Por lo que podemos concluir que tanto el modelo GLN como LDA fueron los que mejor resultados dieron.
+
+(i)
+
+A continuación evaluamos KNN con los valores de K = 10, 20, 50 y  100
+
+```{r, echo=FALSE}
+imprimirASS <- function(z) {
+  a <- paste("Accuracy:", round(as.matrix(z$overall[1]), 4) , sep = " ")
+  s <- paste(" Sensitivity:", round(as.matrix(z$byClass[1]), 4), sep = " ")
+  sp <- paste(" Specificity:", round(as.matrix(z$byClass[2]), 4), sep = " ")
+  print(paste0(a,s,sp))
+}
+```
+
+
+```{r}
+# Para K = 10
+pred.knn <- knn(entrenamiento.x, prueba.x, entrenamiento.Direction, k = 10)
+z <-confusionMatrix(pred.knn, Direction.20092010)
+z$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(z)
+```
+
+
+```{r}
+# Para k = 20
+pred.knn <- knn(entrenamiento.x, prueba.x, entrenamiento.Direction, k = 20)
+z <-confusionMatrix(pred.knn, Direction.20092010)
+z$table
+
+```
+
+```{r, echo=FALSE}
+imprimirASS(z)
+```
+
+```{r}
+# Para k = 50
+pred.knn <- knn(entrenamiento.x, prueba.x, entrenamiento.Direction, k = 50)
+z <-confusionMatrix(pred.knn, Direction.20092010)
+z$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(z)
+```
+
+```{r}
+# Para k = 50
+pred.knn <- knn(entrenamiento.x, prueba.x, entrenamiento.Direction, k = 100)
+z <-confusionMatrix(pred.knn, Direction.20092010)
+z$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(z)
+```
+
+Ahora probaremos una regresión logística con las diferentes configuraciones de variables predictoras: volume, lag2 + lag3, lag1 + lg2, lag1 + lag2 + volume
+
+```{r}
+# para volume
+weeklyrlo2 <- glm(Direction ~ Volume, data = Weekly, family = "binomial", subset = w_entrenamiento)
+p <- predict(weeklyrlo2, Weekly.20092010, type = "response")
+predichos=as.factor(ifelse(test = p > 0.5, yes = "Up", no = "Down"))
+verdaderos=as.factor(Direction.20092010)
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+# para lag2 + lag3
+weeklyrlo2 <- glm(Direction ~ Lag2 + Lag3, data = Weekly, family = "binomial", subset = w_entrenamiento)
+p <- predict(weeklyrlo2, Weekly.20092010, type = "response")
+predichos=as.factor(ifelse(test = p > 0.5, yes = "Up", no = "Down"))
+verdaderos=as.factor(Direction.20092010)
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+# para lag1 + lag2
+weeklyrlo2 <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = "binomial", subset = w_entrenamiento)
+p <- predict(weeklyrlo2, Weekly.20092010, type = "response")
+predichos=as.factor(ifelse(test = p > 0.5, yes = "Up", no = "Down"))
+verdaderos=as.factor(Direction.20092010)
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+# para lag1 + lag2 + volume
+weeklyrlo2 <- glm(Direction ~ Lag1 +  Lag2 + Volume, data = Weekly, family = "binomial", subset = w_entrenamiento)
+p <- predict(weeklyrlo2, Weekly.20092010, type = "response")
+predichos=as.factor(ifelse(test = p > 0.5, yes = "Up", no = "Down"))
+verdaderos=as.factor(Direction.20092010)
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+Ahora probaremos una LDA con las diferentes configuraciones de variables predictoras: volume, lag2 + lag3, lag1 + lg2, lag1 + lag2 + volume
+
+```{r}
+# Para volume
+ldapre <- lda(Direction ~ Volume, data = Weekly, subset = w_entrenamiento)
+pred.lda <- predict(ldapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+# Para lag2 + lag3
+ldapre <- lda(Direction ~ Lag2 + Lag3, data = Weekly, subset = w_entrenamiento)
+pred.lda <- predict(ldapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+# Para lag1 + lag2
+ldapre <- lda(Direction ~ Lag1 + Lag2, data = Weekly, subset = w_entrenamiento)
+pred.lda <- predict(ldapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+# Para lag1 + lag2 + volume
+ldapre <- lda(Direction ~ Lag1 + Lag2 + Volume, data = Weekly, subset = w_entrenamiento)
+pred.lda <- predict(ldapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+Ahora probaremos una QDA con las diferentes configuraciones de variables predictoras: volume, lag2 + lag3, lag1 + lg2, lag1 + lag2 + volume
+
+```{r}
+# para volume
+qdapre <- qda(Direction ~ Volume, data = Weekly, subset = w_entrenamiento)
+pred.qda <- predict(qdapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.qda$class, verdaderos)
+matriz$table
+```
+
+```{r}
+imprimirASS(matriz)
+```
+
+```{r}
+# para lag2 + lag3
+qdapre <- qda(Direction ~ Lag2 + Lag3, data = Weekly, subset = w_entrenamiento)
+pred.qda <- predict(qdapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.qda$class, verdaderos)
+matriz$table
+```
+
+```{r}
+imprimirASS(matriz)
+```
+
+```{r}
+# para lag1 + lag2
+qdapre <- qda(Direction ~ Lag1 + Lag2, data = Weekly, subset = w_entrenamiento)
+pred.qda <- predict(qdapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.qda$class, verdaderos)
+matriz$table
+```
+
+```{r}
+imprimirASS(matriz)
+```
+
+```{r}
+# para lag1 + lag2 + volume
+qdapre <- qda(Direction ~ Lag1 + Lag2 + Volume, data = Weekly, subset = w_entrenamiento)
+pred.qda <- predict(qdapre, Weekly.20092010)
+matriz<-confusionMatrix(pred.qda$class, verdaderos)
+matriz$table
+```
+
+```{r}
+imprimirASS(matriz)
+```
+
+#### 11
+
+(a)
+
+```{r}
+Auto <- Auto[c(-10,-11,-12,-13,-14,-15,-16,-17,-18)]
+mpg01 <- rep(0, length(Auto$mpg))
+mpg01[Auto$mpg > median(Auto$mpg)] <- 1
+Auto <- data.frame(Auto, mpg01)
+```
+
+(b)
+
+```{r}
+str(Auto)
+```
+
+
+```{r}
+# Sabiendo que name es un factor, lo excluimos del análisis
+
+pairs.panels(Auto[,-9], 
+             method = "pearson",
+             hist.col = "#00AFBB",
+             density = TRUE,  
+             )
+```
+
+Podemos apreciar que existe una correlación negativa con las variables cylinders, displacement, horsepower y weight
+
+(c)
+
+```{r}
+x <- sample(1:dim(Auto)[1], size=dim(Auto)[1]*0.75)
+train <- Auto[x,]
+test = Auto[-x,]
+```
+
+(d)
+```{r}
+autos.lda = lda(mpg01~displacement+weight+cylinders+horsepower, data=train)
+autos.lda
+```
+
+```{r}
+pred.lda <- predict(autos.lda, test, type="response")
+matriz <- confusionMatrix(pred.lda$class, as.factor(test$mpg01))
+matriz$table
+```
+```{r}
+imprimirASS(matriz)
+```
+
+Podemos apreciar que la tasa de error es de un 10.2%
+
+(e)
+
+```{r}
+autos.qda <- qda(mpg01 ~ cylinders + weight + displacement + horsepower, data = train)
+autos.qda
+```
+
+```{r}
+pred.qda <- predict(autos.qda, test)
+matriz <- confusionMatrix(pred.qda$class, as.factor(test$mpg01))
+matriz$table
+```
+
+```{r}
+imprimirASS(matriz)
+```
+
+Como podemos ver la tasa de error es del 11.22%
+
+(f)
+
+```{r}
+autos.glm <- glm(mpg01 ~ cylinders + weight + displacement + horsepower, data = train, family = binomial)
+summary(autos.glm)
+```
+```{r}
+p <- predict(autos.glm, test, type = "response")
+predichos=as.factor(ifelse(test = p > 0.5, yes = 1, no = 0))
+verdaderos=as.factor(test$mpg01)
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+La tasa de error es de 11.22%
+
+(g)
+
+```{r}
+train.X2 = cbind(train$displacement, train$weight, train$cylinders, train$year)
+test.X2 = cbind(test$displacement, test$weight, test$cylinders, test$year)
+train.Y2 = cbind(train$mpg01)
+```
+
+
+```{r}
+# Para K = 10
+pred.knn <- knn(train.X2, test.X2, train.Y2, k = 10)
+z <-confusionMatrix(pred.knn, as.factor(test$mpg01))
+z$table
+```
+
+
+```{r, echo=FALSE}
+imprimirASS(z)
+```
+
+La tasa de error el de 10.2%
+
+```{r}
+# Para K = 50
+pred.knn <- knn(train.X2, test.X2, train.Y2, k = 50)
+z <-confusionMatrix(pred.knn, as.factor(test$mpg01))
+z$table
+```
+
+
+```{r, echo=FALSE}
+imprimirASS(z)
+```
+
+La tasa de error es del 10.2%
+
+```{r}
+# Para K = 100
+pred.knn <- knn(train.X2, test.X2, train.Y2, k = 100)
+z <-confusionMatrix(pred.knn, as.factor(test$mpg01))
+z$table
+```
+
+
+```{r, echo=FALSE}
+imprimirASS(z)
+```
+
+La tasa de error es del 10.2%
+
+Podemos ver que a partir de k = 10, la tasa de error se mantiene.
+
+#### 12
+
+(a)
+
+```{r}
+Power <- function() {
+  2^3
+}
+Power()
+```
+
+(b)
+
+```{r}
+Power2 <- function(x, a) {
+  x^a
+}
+Power2(3,8)
+```
+
+```{r}
+Power2(10,3)
+Power2(8,17)
+Power2(131,3)
+```
+
+(c)
+
+```{r}
+Power3 <- function(x , a) {
+    result <- x^a
+    return(result)
+}
+```
+
+(d)
+
+```{r}
+x <- 1:10
+plot(x, Power3(x, 2), log = "xy", xlab = "Log de x", ylab = "Log de x^2", main = "Log de x^2 vs Log de x")
+```
+
+```{r}
+PlotPower <- function(x, a) {
+    plot(x, Power3(x, a))
+}
+
+PlotPower(1:10, 3)
+```
+
+
+#### 13
+
+Se requiere usar la base de datos "Boston", la cual a continuación podemos apreciar las variables que posee:
+
+```{r}
+str(Boston)
+```
+
+Ahora calcularemos la mediana de la variiable crim para crear una nueva variable, la cual será binaria en donde 0 = crim <= mediana ó 1 = crim > mediana
+
+```{r}
+mediana_crim <- rep(0, length(Boston$crim))
+mediana_crim[Boston$crim > median(Boston$crim)] <- 1
+Boston$mediana_crim = mediana_crim
+head(Boston)
+```
+
+Ahora construiremos nuestros datos de entrenamiento y de prueba
+
+```{r}
+set.seed(123)
+train_index <- sample(1:nrow(Boston), 0.8 * nrow(Boston))
+test_index <- setdiff(1:nrow(Boston), train_index)
+```
+
+```{r}
+train <- Boston[train_index,0:length(Boston)]
+test <- Boston[test_index,0:length(Boston)]
+```
+
+Ahora para entender un poco mejor las variables realizaremos un gráfico de dispersión y de correlaciones
+
+```{r, fig, fig.height = 7, fig.width = 10, fig.align = "center"}
+pairs.panels(Boston, 
+             method = "pearson",
+             hist.col = "#00AFBB",
+             density = TRUE,  
+             )
+```
+
+Podemos apreciar que respecto a la variable mediana_crim, las variables nox, rad, dis, age, tax e indus son las que más están correlacionadas. Para este ejercicio se utilizarán modelos partiendo de una variable (la de mayor correlación) y se irán agregando nuevas variables para determinar cual es el mejor modelo para cada ténica.
+
+Comenzando con modelos de regresión logística:
+
+- Modelo con nox como única variable predictora
+
+```{r}
+glm_13.fit <- glm(mediana_crim ~ nox, data = train, family = binomial)
+probs <- predict(glm_13.fit, test[,-15], type = "response")
+predichos=as.factor(ifelse(test = probs > 0.5, yes = 1, no = 0))
+verdaderos=as.factor(test[,15])
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+- Modelo con nox y rad como únicas variables predictoras
+
+```{r}
+glm_13.fit <- glm(mediana_crim ~ nox + rad, data = train, family = binomial)
+probs <- predict(glm_13.fit, test[,-15], type = "response")
+predichos=as.factor(ifelse(test = probs > 0.5, yes = 1, no = 0))
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+- Modelo con nox, rad y dis como únicas variables predictoras
+
+```{r}
+glm_13.fit <- glm(mediana_crim ~ nox + rad + dis, data = train, family = binomial)
+probs <- predict(glm_13.fit, test[,-15], type = "response")
+predichos=as.factor(ifelse(test = probs > 0.5, yes = 1, no = 0))
+matriz<-confusionMatrix(predichos, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+Como podemos apreciar en los anteriores modelos, con las variables nox y rad como únicas predictoras se obtuvo el mejor modelo, cuando agregamos más variables predictoras no se mejoran los resultados: Accuracy: 0.902 Sensitivity: 0.9388 Specificity: 0.8679
+
+Ahora seguimos con los modelos LDA
+
+- Modelo con nox como única variable predictora
+
+```{r}
+ldapre <- lda(mediana_crim ~ nox, data = train)
+pred.lda <- predict(ldapre, test[,-15])
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+- Modelo con nox y rad como únicas variables predictoras
+
+```{r}
+ldapre <- lda(mediana_crim ~ nox + rad, data = train)
+pred.lda <- predict(ldapre, test[,-15])
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+- Modelo con nox, rad y dis como únicas variables predictoras
+
+```{r}
+ldapre <- lda(mediana_crim ~ nox + rad + dis, data = train)
+pred.lda <- predict(ldapre, test[,-15])
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+- Modelo con nox, rad, dis y age como únicas variables predictoras
+
+```{r}
+ldapre <- lda(mediana_crim ~ nox + rad + dis + age, data = train)
+pred.lda <- predict(ldapre, test[,-15])
+matriz<-confusionMatrix(pred.lda$class, verdaderos)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+Podemos ver que aumentando el número de variables no presenta un mejora en la precisión de nuestro modelo, de lo que se probaron el mejor fue el que se usó con las variables nox y rad con los siguientes parámetros: Accuracy: 0.8627 Sensitivity: 0.9592 Specificity: 0.7736
+
+Modelos KNN
+
+```{r}
+modelos_knn <- function(x_train, x_test, y_train, y_test, nk){
+  pred.knn <- knn(x_train, x_test, y_train, k = nk)
+  z <-confusionMatrix(pred.knn, y_test)
+  print(paste0("K = ", nk))
+  imprimirASS(z)
+}
+```
+
+```{r}
+entrenamiento.x <- as.matrix(train[,-15])
+prueba.x <- as.matrix(test[,-15])
+entrenamiento.y <- as.factor(train[,15])
+prueba.y <- as.factor(test[,15])
+```
+
+```{r}
+for (k in c(2:20)) {
+  modelos_knn(entrenamiento.x, prueba.x, entrenamiento.y, prueba.y, k)
+}
+```
+
+Podemos ver con un K = 5 se obtuvo la mayor precisión, lo cual también determina, que éste es el mejor modelo de todos los que se probaron en el ejercicio
+
+### Capitulo 8 {.tabset .tabset-fade .tabset-pills}
+
+#### 7
+
+```{r}
+library(MASS)
+library(randomForest)
+
+set.seed(1)
+
+train <- sample(1:nrow(Boston), 400)
+Boston.train <- Boston[train, -14]
+Boston.test <- Boston[-train, -14]
+Y.train <- Boston[train, 14]
+Y.test <- Boston[-train, 14]
+boston1 <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = ncol(Boston) - 1, ntree = 500)
+boston2 <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = (ncol(Boston) - 1) / 2, ntree = 500)
+boston3 <- randomForest(Boston.train, y = Y.train, xtest = Boston.test, ytest = Y.test, mtry = sqrt(ncol(Boston) - 1), ntree = 500)
+
+valores <- data.frame(c(1:500))
+names(valores) <- "arboles"
+valores["MSE1"] <- boston1$test$mse
+valores["MSE2"] <- boston2$test$mse
+valores["MSE3"] <- boston3$test$mse
+
+library(ggplot2)
+library(reshape2)
+dd = melt(valores, id=c("arboles"))
+
+theme_set(theme_bw()) 
+ggplot(dd) + geom_line(aes(x=arboles, y=value, color=variable)) +
+  scale_color_manual(name = "m = ",
+                     labels = c("p","p/2","\u221Ap"),
+                     values=c("green","red","blue")) +
+  labs(x = "Número de árboles",
+       y = "Error de clasificación") +
+  theme(legend.position="top")
+```
+
+Como podemos apreciar en el gráfico anterior con solamente un árbol el erro tiende a ser muy alto, pero a medida que se aumenta el número de árboles, se estabiliza este error, aproximadamente a partir de 100 árboles, este comportamiento se presenta en general con los tres valores de m. Respecto a con cual m se presenta el menor error, podemos ver que en mi caso fue con $m=p$, aunque si cambiamos la semilla este resultado puede cambiar.
+
+#### 8
+
+(a)
+
+```{r}
+train <- sample(1:nrow(Carseats), 300)
+Carseats.train <- Carseats[train, ]
+Carseats.test <- Carseats[-train, ]
+```
+
+(b)
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+tree <- rpart(Sales~., data=Carseats.train)
+
+rpart.plot(tree, box.palette="RdBu", nn=TRUE)
+```
+
+```{r}
+yhat <- predict(tree, newdata = Carseats.test)
+m1 <- mean((yhat - Carseats.test$Sales)^2)
+m1
+```
+
+Como podemos apreciar el error MSE de la prueba es de 4.197228
+
+(c)
+
+```{r}
+printcp(tree)
+```
+
+```{r}
+plotcp(tree)
+```
+
+```{r}
+min <- which.min(tree$cptable[,"xerror"])
+min
+```
+```{r}
+cp <-tree$cptable[which.min(tree$cptable[,"xerror"]),"CP"]
+cp
+```
+
+Con la validación cruzada obtenemos un tamaño de arbol igual a 7 y un cp de 0.02145892
+
+```{r}
+ptree<- prune(tree, cp= cp)
+```
+
+```{r}
+rpart.plot(ptree, box.palette="RdBu", nn=TRUE)
+```
+
+```{r}
+yhat <- predict(ptree, newdata = Carseats.test)
+m2 <- mean((yhat - Carseats.test$Sales)^2)
+m2
+```
+
+Podemos ver que se aumenta el MSE en nuestro caso después de la poda
+
+(d)
+
+```{r}
+bag.carseats <- randomForest(Sales ~ ., data = Carseats.train, mtry = (ncol(Carseats) - 1), importance = TRUE)
+yhat.bag <- predict(bag.carseats, newdata = Carseats.test)
+mean((yhat.bag - Carseats.test$Sales)^2)
+```
+
+Podemos ver como se mejoró a 2.38 el MSE con este enfoque.
+
+```{r}
+importance(bag.carseats)
+```
+
+Y con esto podemos apreciar que Price, ShelveLoc y CompPrice son las variables predictoras más importantes en este análisis
+
+(e)
+
+
+```{r}
+bag.carseats <- randomForest(Sales ~ ., data = Carseats.train, mtry = sqrt((ncol(Carseats) - 1)), importance = TRUE)
+yhat.bag <- predict(bag.carseats, newdata = Carseats.test)
+mean((yhat.bag - Carseats.test$Sales)^2)
+```
+
+En este caso tenemos un MSE de 2.8
+
+```{r}
+importance(bag.carseats)
+```
+
+También podemos ver que las variables más importantes siguen siendo las mismas que las que se declararon en el punto anterior.
+
+#### 9
+
+(a)
+
+```{r}
+train <- sample(1:nrow(OJ), 800)
+OJ.train <- OJ[train, ]
+OJ.test <- OJ[-train, ]
+```
+
+(b)
+
+
+```{r}
+library(tree)
+tree.oj <- tree(Purchase ~ ., data = OJ.train)
+summary(tree.oj)
+```
+
+Como podemos apreciar, el arbol tiene 9 nodos terminales y un error de entrenamiento de 0.1512. También podemos ver que las variables usadas en la construcción del árbol son LoyalCH, SalePriceMM, specialCH y PriceDiff
+
+(c)
+
+```{r}
+tree.oj
+```
+
+Se escoge el nodo terminal 7, en este podemos apreciar que su creterio de división es LoyalCH > 0.764572, éste tiene 261 observaciones en este nodo con una desviación de 78.30. La predicción en este nodo es Sales = CH, también podemos ver que el 96.552% de las observaciones toman el valor de CH, mientras que el 3.448% toman el valor de MM.
+
+(d)
+
+```{r}
+plot(tree.oj)
+text(tree.oj, pretty = 0)
+```
+
+En este caso podemos apreciar que la variable principal es LoyalCH, los nodos que nacen de este también usan LoyalCH para dividir el arbol. Podemos ver que en el nodo principal si LoyalCH es mayor o igual a 0.5036, sólo se usa PriceDiff como otra variable, mientras en caso contrario se utilizan las variables salePriceMM y SpecialCH.
+
+(e)
+
+```{r}
+tree.pred <- predict(tree.oj, OJ.test, type = "class")
+
+matriz<-confusionMatrix(tree.pred, OJ.test$Purchase)
+matriz
+```
+
+Podemos ver que la precisión del modelo es de 81.48%, siendo mucho más preciso para predecir CH con un 90% mientras que para predecir MM sólo es de un 69.09%.
+
+(f)
+
+```{r}
+cv.oj <- cv.tree(tree.oj, FUN = prune.misclass)
+cv.oj
+```
+
+(g)
+
+```{r}
+valores <- data.frame(cv.oj$size, cv.oj$dev)
+names(valores) <- c("Size", "Dev")
+
+library(ggplot2)
+library(reshape2)
+
+theme_set(theme_bw()) 
+ggplot(data = valores, aes(x=Size, y=Dev)) + 
+  geom_line(color="red", linetype = "dashed") +
+  geom_point() +
+  scale_x_discrete(limits=c(1:9))
+```
+
+(h)
+
+El tamaño de árbol con menor error es de 7
+
+(i)
+
+```{r}
+prune.oj <- prune.misclass(tree.oj, best = 7)
+plot(prune.oj)
+text(prune.oj, pretty = 0)
+```
+
+(j)
+
+```{r}
+summary(prune.oj)
+summary(tree.oj)
+```
+
+Vemos que practicamente no existe diferencia entre los dos árboles, siendo levemenete mayor en el arbol podado
+
+(k)
+
+```{r}
+prune.pred <- predict(prune.oj, OJ.test, type = "class")
+
+matriz<-confusionMatrix(prune.pred, OJ.test$Purchase)
+matriz
+
+```
+
+Vemos que bajó la precisión del modelo con respecto al árbol sin podar.
+
+#### 10
+#### 11
+#### 12
+
+### Capitulo 9 {.tabset .tabset-fade .tabset-pills}
+
+#### 4
+#### 5
+#### 6
+#### 7
+#### 8
+
+### Ensayo
+
