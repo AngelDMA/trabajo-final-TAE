@@ -5,7 +5,7 @@ date: "16/3/2020"
 output: 
   html_document: 
     highlight: tango
-    theme: journal
+    theme: flatly
 ---
 ## {.tabset .tabset-fade .tabset-pills}
 
@@ -349,7 +349,7 @@ matriz<-confusionMatrix(pred.qda$class, verdaderos)
 matriz$table
 ```
 
-```{r}
+```{r, echo=FALSE}
 imprimirASS(matriz)
 ```
 
@@ -361,7 +361,7 @@ matriz<-confusionMatrix(pred.qda$class, verdaderos)
 matriz$table
 ```
 
-```{r}
+```{r, echo=FALSE}
 imprimirASS(matriz)
 ```
 
@@ -373,7 +373,7 @@ matriz<-confusionMatrix(pred.qda$class, verdaderos)
 matriz$table
 ```
 
-```{r}
+```{r, echo=FALSE}
 imprimirASS(matriz)
 ```
 
@@ -385,7 +385,7 @@ matriz<-confusionMatrix(pred.qda$class, verdaderos)
 matriz$table
 ```
 
-```{r}
+```{r, echo=FALSE}
 imprimirASS(matriz)
 ```
 
@@ -1454,8 +1454,463 @@ ggplot(train, aes(x=x1, y=x2, col=predsr)) +
 Podemos ver a través de estos experimentos que las mquinas de soporte vectorial con metodos no lineas en datos que no tienen "perimetro" lineal, son muy efectivas, también si tienen perímetro lineal las svm con método lineal también son muy efectivas en estos casos.
 
 #### 6
+
+(a)
+
+```{r}
+x1=runif (1000) -0.5 
+x2=runif (1000) -0.5
+
+temp <- x1-x2
+
+y <- rep(0, 1000)
+
+for (i in 1:1000) {
+  if (temp[i] > 0.1) {
+    y[i] <- 1
+  }
+  else if (temp[i] < -0.1) {
+    y[i] <- 0
+  }
+  else {
+    y[i] <- runif(1) > 0.5
+  }
+}
+  
+df2 <- data.frame(x1,x2,y)
+
+df2$y <- as.factor(df2$y)
+
+ggplot(df2, aes(x=x1,y=x2,col=y)) +
+  geom_point()
+
+```
+
+(b)
+
+```{r}
+svm1 <- tune(svm, y ~ ., data = df2, kernel = "linear", ranges = list(cost = c(0.0001, 0.001, 0.01, 1, 5, 10, 100, 1000, 10000)))
+summary(svm1)
+```
+
+Podemos ver que un costo de 0.01 es el que nos dá el menor error
+
+```{r}
+data.frame(cost = svm1$performance$cost, misclass = svm1$performance$error * 1000)
+```
+
+Podemos ver que con un costo de 0.01 se clasificaron mal 85 observaciones.
+
+(c)
+
+```{r}
+set.seed(5)
+x1_test=runif (1000) -0.5 
+x2_test=runif (1000) -0.5
+
+temp_test <- x1_test-x2_test
+
+y_test <- rep(0, 1000)
+
+for (i in 1:1000) {
+  if (temp_test[i] > 0.1) {
+    y_test[i] <- 1
+  }
+  else if (temp_test[i] < -0.1) {
+    y_test[i] <- 0
+  }
+  else {
+    y_test[i] <- runif(1) > 0.5
+  }
+}
+  
+df3 <- data.frame(x1_test,x2_test,y_test)
+
+df3$y_test <- as.factor(df3$y_test)
+
+ggplot(df3, aes(x=x1_test,y=x2_test,col=y_test)) +
+  geom_point()
+
+```
+
+```{r}
+names(df3) <- c("x1","x2","y")
+costs <- c(0.0001, 0.001, 0.01, 1, 5, 10, 100, 1000, 10000)
+test.err <- rep(NA, length(costs))
+for (i in 1:length(costs)) {
+    svm.fit <- svm(y ~ ., data = df2, kernel = "linear", cost = costs[i])
+    pred <- predict(svm.fit, df3)
+    test.err[i] <- sum(pred != df3$y)
+}
+data.frame(cost = costs, misclass = test.err)
+```
+
+Podemos ver que en este caso el mejor costo fue dado por $c=1$, con 92 errores a la hora de predicción
+
+(d)
+
+Podemos apreciar que aunque el costo en ambos casos fue diferente, realmente no difiere demasiado, ya que a partir de un costo de 0.001 no se presentan grandes cambios en los errores, 
+
 #### 7
+
+(a)
+
+```{r}
+Auto <- Auto[,-10] %>%
+    mutate(highmpg = as.integer(mpg > median(mpg))) %>%
+    mutate(highmpg = factor(highmpg))
+head(Auto)
+```
+
+
+(b)
+
+```{r}
+svml <- tune(svm, highmpg ~ ., data = Auto, kernel = "linear", ranges = list(cost = c(0.001,0.01, 0.1, 1, 5, 10, 100, 1000)))
+summary(svml)
+```
+
+Se puede apreciar como con un costo de 1 se tiene el menor error.
+
+(c)
+
+- Kernel polinomial
+
+```{r}
+svmk <- tune(svm, highmpg ~ ., data = Auto, kernel = "polynomial", ranges = list(cost = c(0.001,0.01, 0.1, 1, 5, 10, 100, 1000), degree = c(2, 3, 4)))
+summary(svmk)
+```
+
+Aquí vemos que el menor error se da con un costo de 1000 de grado 2
+
+- Kernel radial
+
+```{r}
+svmr <- tune(svm, highmpg ~ ., data = Auto, kernel = "radial", ranges = list(cost = c(0.001,0.01, 0.1, 1, 5, 10, 100, 1000), gamma = c(0.01, 0.1, 1, 5, 10, 100)))
+summary(svmr)
+```
+
+Con un costo de 100 y un gama de 0.01 se obtuvo el menor error en el modelo
+
+(d)
+
+```{r}
+svm.linear <- svm(highmpg ~ ., data = Auto, kernel = "linear", cost = 1)
+svm.poly <- svm(highmpg ~ ., data = Auto, kernel = "polynomial", cost = 100, degree = 2)
+svm.radial <- svm(highmpg ~ ., data = Auto, kernel = "radial", cost = 100, gamma = 0.01)
+```
+
+- Lineal
+
+```{r, echo=FALSE}
+plot(svm.linear, Auto, mpg~cylinders)
+plot(svm.linear, Auto, mpg~displacement)
+plot(svm.linear, Auto, mpg~horsepower)
+plot(svm.linear, Auto, mpg~weight)
+plot(svm.linear, Auto, mpg~acceleration)
+```
+
+- Polinomial
+
+```{r, echo=FALSE}
+plot(svm.poly, Auto, mpg~cylinders)
+plot(svm.poly, Auto, mpg~displacement)
+plot(svm.poly, Auto, mpg~horsepower)
+plot(svm.poly, Auto, mpg~weight)
+plot(svm.poly, Auto, mpg~acceleration)
+```
+
+- Radial
+
+```{r, echo=FALSE}
+plot(svm.radial, Auto, mpg~cylinders)
+plot(svm.radial, Auto, mpg~displacement)
+plot(svm.radial, Auto, mpg~horsepower)
+plot(svm.radial, Auto, mpg~weight)
+plot(svm.radial, Auto, mpg~acceleration)
+```
+
 #### 8
+
+(a)
+
+```{r}
+data('OJ')
+
+inTrain <- sample(nrow(OJ), 800, replace = FALSE)
+
+training <- OJ[inTrain,]
+testing <- OJ[-inTrain,]
+```
+
+
+(b)
+
+```{r}
+svm_linear <- svm(Purchase ~ ., data = training,
+                  kernel = 'linear',
+                  cost = 0.01)
+summary(svm_linear)
+```
+
+Podemos apreciar que se tienen 440 vectores de soporte de los cuales 219 pertenecen a CH y 221 a MM
+
+(c)
+
+```{r}
+train.pred <- predict(svm_linear, training)
+matriz <- confusionMatrix(train.pred, training$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+# Calculando el error de entrenamiento
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+```{r}
+test.pred <- predict(svm_linear, testing)
+matriz <- confusionMatrix(test.pred, testing$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+(d)
+
+Podemos ver que en ambos casos el error es del 17%
+
+```{r}
+to = tune(svm, Purchase ~ ., data = training, kernel = "linear", ranges = list(cost = 10^seq(-2, 
+    1, by = 0.25)))
+summary(to)
+```
+
+(e)
+
+```{r}
+svm.linear <- svm(Purchase ~ ., kernel = "linear", data = training, cost = to$best.parameters$cost)
+train.pred = predict(svm.linear, training)
+matriz <- confusionMatrix(train.pred, training$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+
+```{r}
+test.pred <- predict(svm_linear, testing)
+matriz <- confusionMatrix(test.pred, testing$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+Podemos ver que el error de entrenamiento baja un poco, pero el de prueba se mantiene
+
+(f)
+
+```{r}
+svm.radial = svm(Purchase ~ ., data = training, kernel = "radial")
+summary(svm.radial)
+```
+
+```{r}
+train.pred = predict(svm.radial, training)
+matriz <- confusionMatrix(train.pred, training$Purchase)
+matriz$table
+```
+
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+```{r}
+test.pred = predict(svm.radial, testing)
+matriz <- confusionMatrix(test.pred, testing$Purchase)
+matriz$table
+```
+
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+```{r}
+to = tune(svm, Purchase ~ ., data = training, kernel = "radial", ranges = list(cost = 10^seq(-2, 
+    1, by = 0.25)))
+summary(to)
+```
+
+```{r}
+svm.radial = svm(Purchase ~ ., data = training, kernel = "radial", cost = to$best.parameters$cost)
+train.pred = predict(svm.radial, training)
+matriz <- confusionMatrix(train.pred, training$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+```{r}
+test.pred = predict(svm.radial, testing)
+matriz <- confusionMatrix(test.pred, testing$Purchase)
+matriz$table
+```
+
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+(g)
+
+```{r}
+svm.poly = svm(Purchase ~ ., data = training, kernel = "poly", degree = 2)
+summary(svm.poly)
+```
+
+```{r}
+train.pred = predict(svm.poly, training)
+matriz <- confusionMatrix(train.pred, training$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+```{r}
+test.pred = predict(svm.poly, testing)
+matriz <- confusionMatrix(test.pred, testing$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+```{r}
+to = tune(svm, Purchase ~ ., data = training, kernel = "poly", degree = 2, 
+    ranges = list(cost = 10^seq(-2, 1, by = 0.25)))
+summary(to)
+```
+
+```{r}
+svm.poly = svm(Purchase ~ ., data = training, kernel = "poly", degree = 2, cost = to$best.parameters$cost)
+train.pred = predict(svm.poly, training)
+matriz <- confusionMatrix(train.pred, training$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+```{r}
+test.pred = predict(svm.poly, testing)
+matriz <- confusionMatrix(test.pred, testing$Purchase)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r, echo=FALSE}
+# Calculando el error del set de prueba
+a <- 1-matriz$overall[1]
+names(a) <- "error"
+a
+```
+
+(h)
+
+Podemos ver como el polinomial usando el mejor costo es el que ofrece un mejor resultado de entrenamiento pero el lineal es el que tiene menor error de prueba  
 
 ### Ensayo
 
