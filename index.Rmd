@@ -1374,13 +1374,84 @@ ggplot(df, aes(x=x1, y=x2, col=y)) +
 (c)
 
 ```{r}
-inTrain <- sample(nrow(df), nrow(df)*0.7, replace = FALSE)
-train <- df[inTrain,]
-test <- df[-inTrain,]
+train <- df
 logreg_fit <- glm(y ~ ., data = train, family = 'binomial')
 summary(logreg_fit)
 ```
 
+(d)  
+
+```{r}
+probs <- predict(logreg_fit, data = train, type = "response")
+preds <- rep(0, 500)
+preds[probs > 0.5] <- 1
+train['preds'] <- preds
+```
+
+```{r}
+theme_set(theme_bw()) 
+train <- train %>%
+    mutate(preds = factor(preds))
+ggplot(train, aes(x=x1, y=x2, col=preds)) + 
+  geom_point()
+```
+
+(e)
+
+```{r}
+lm.fit = glm(y ~ poly(x1, 2) + x2, data = train, family = binomial)
+summary(lm.fit)
+```
+
+(f)
+
+```{r}
+probs <- predict(lm.fit, data = train, type = "response")
+preds2 <- rep(0, 500)
+preds2[probs > 0.5] <- 1
+```
+
+```{r}
+theme_set(theme_bw()) 
+train <- train %>%
+    mutate(preds2 = factor(preds2))
+ggplot(train, aes(x=x1, y=x2, col=preds2)) + 
+  geom_point()
+```
+
+(g)
+
+```{r}
+svm.fit <- svm(y ~ x1 + x2, data = train, kernel = "linear")
+preds3 <- predict(svm.fit, train)
+```
+
+```{r}
+theme_set(theme_bw()) 
+train['preds3'] <- preds3 
+ggplot(train, aes(x=x1, y=x2, col=preds3)) + 
+  geom_point()
+```
+
+(h)
+
+```{r}
+svmr <- svm(y ~ x1 + x2, data = train,
+                  kernel = 'radial',
+                  scale = FALSE)
+predsr <- predict(svmr, train)
+```
+
+```{r}
+theme_set(theme_bw()) 
+train['predsr'] <- predsr 
+ggplot(train, aes(x=x1, y=x2, col=predsr)) + 
+  geom_point()
+```
+
+(i)
+
+Podemos ver a través de estos experimentos que las mquinas de soporte vectorial con metodos no lineas en datos que no tienen "perimetro" lineal, son muy efectivas, también si tienen perímetro lineal las svm con método lineal también son muy efectivas en estos casos.
 
 #### 6
 #### 7
