@@ -1247,7 +1247,141 @@ En general no se encuentran grandes diferencias entre ellos, pero de estos propu
 ### Capitulo 9 {.tabset .tabset-fade .tabset-pills}
 
 #### 4
+
+```{r include=FALSE}
+library(e1071)
+library(tidyverse)
+```
+
+
+```{r}
+df <- data.frame(replicate(2, rnorm(n = 100)))
+df <- as.tibble(df)
+
+gen <- function(x, y) {
+    x^2 + y^2 <= 1
+}
+
+df <- df %>%
+    rename(Var1 = X1, Var2 = X2) %>%
+    mutate(Clases = ifelse(gen(Var1, Var2),
+                          'Clase 1',
+                          'Clase 2'),
+           Clases = factor(Clases))
+
+inTrain <- sample(nrow(df), nrow(df)*0.7)
+train <- df[inTrain,]
+test <- df[-inTrain,]
+
+theme_set(theme_bw())
+ggplot(df, aes(Var1, Var2, col = Clases)) +
+    geom_point(size = 2)
+```
+
+- Clasificador de soporte vectorial
+
+```{r}
+svm1 <- svm(Clases ~ ., data = train, 
+                 kernel = 'linear', 
+                 scale = FALSE, cost = 10)
+plot(svm1, data = train)
+```
+
+```{r}
+matriz <- confusionMatrix(predict(svm1, test), test$Clases)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+plot(svm1, data = test)
+```
+
+
+- SVM con kernel polinomial
+
+```{r}
+svm2 <- svm(Clases ~ ., data = train, 
+                kernel = 'polynomial', degree = 2,
+                scale = FALSE, cost = 1)
+
+plot(svm2, train)
+```
+
+```{r}
+matriz <- confusionMatrix(predict(svm2, test), test$Clases)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+plot(svm2, data = test)
+```
+
+- SVM con kernel radial
+
+```{r}
+svm3 <- svm(Clases ~ ., data = train,
+                  kernel = 'radial',
+                  scale = FALSE, cost = 1)
+plot(svm3, train)
+```
+
+```{r}
+matriz <- confusionMatrix(predict(svm3, test), test$Clases)
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+```{r}
+plot(svm3, data = test)
+```
+
+Podemos apreciar que, tal como lo decía el enunciado, tanto la SVM de kernel radial como polinomial tienen un mejor rendimiento que el modelo con kernel lineal. El modelo que tuvo un mejor rendimiento en este experimento fue la SVM polinomial de grado 2, con una precisión del 100% con el set de entrenamiento.
+
 #### 5
+
+(a)
+
+```{r}
+x1 <- runif(500) - 0.5
+x2 <- runif(500) - 0.5
+y <- 1 * (x1^2 - x2^2 > 0)
+```
+
+(b)
+
+```{r}
+df <- data.frame(y,x1,x2)
+
+df <- df %>%
+    mutate(y = factor(y ))
+
+theme_set(theme_bw()) 
+ggplot(df, aes(x=x1, y=x2, col=y)) + 
+  geom_point()
+```
+
+(c)
+
+```{r}
+inTrain <- sample(nrow(df), nrow(df)*0.7, replace = FALSE)
+train <- df[inTrain,]
+test <- df[-inTrain,]
+logreg_fit <- glm(y ~ ., data = train, family = 'binomial')
+summary(logreg_fit)
+```
+
+
 #### 6
 #### 7
 #### 8
