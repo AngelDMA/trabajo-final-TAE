@@ -1004,8 +1004,245 @@ matriz
 Vemos que bajó la precisión del modelo con respecto al árbol sin podar.
 
 #### 10
+
+(a)
+
+```{r}
+Hitters <- na.omit(Hitters)
+Hitters$Salary <- log(Hitters$Salary)
+```
+
+(b)
+
+```{r}
+train <- 1:200
+Hitters.train = Hitters[train, ]
+Hitters.test = Hitters[-train, ]
+```
+
+(c)
+
+```{r}
+library(gbm)
+lambdas = seq(0.001, 0.3, 0.005)
+mse <- rep(0, length(lambdas))
+for (i in 1:length(lambdas)) {
+  boost.hitters <- gbm(Salary ~ ., data = Hitters.train, distribution = "gaussian", n.trees = 1000, shrinkage = lambdas[i])
+    pred.train <- predict(boost.hitters, Hitters.train, n.trees = 1000)
+    mse[i] <- mean((pred.train - Hitters.train$Salary)^2)
+}
+```
+
+```{r}
+library(ggplot2)
+
+mse_graph <- data.frame(lambdas)
+mse_graph["MSE"]<- mse
+names(mse_graph) <- c("Lambdas", "MSE")
+
+theme_set(theme_bw()) 
+ggplot(data = mse_graph, aes(x = Lambdas, y = MSE)) +
+  geom_line(color="red", linetype = "dashed") +
+  geom_point() 
+  
+```
+
+(d)
+
+```{r}
+mse2 <- rep(NA, length(lambdas))
+for (i in 1:length(lambdas)) {
+    boost.hitters <- gbm(Salary ~ ., data = Hitters.train, distribution = "gaussian", n.trees = 1000, shrinkage = lambdas[i])
+    yhat <- predict(boost.hitters, Hitters.test, n.trees = 1000)
+    mse2[i] <- mean((yhat - Hitters.test$Salary)^2)
+}
+```
+
+```{r}
+library(ggplot2)
+
+mse_graph2 <- data.frame(lambdas)
+mse_graph2["MSE"]<- mse2
+names(mse_graph2) <- c("Lambdas", "MSE")
+
+theme_set(theme_bw()) 
+ggplot(data = mse_graph2, aes(x = Lambdas, y = MSE)) +
+  geom_line(color="red", linetype = "dashed") +
+  geom_point() 
+  
+```
+
+```{r}
+min(mse2)
+lambdas[which.min(mse2)]
+```
+
+
+(e)
+
+```{r}
+lm810 <- lm(Salary ~ ., data = Hitters.train)
+pred810 <- predict(lm810, Hitters.test)
+mean((pred810 - Hitters.test$Salary)^2)
+```
+
+```{r}
+library(pls)
+pcr.fit=pcr(Salary~., data=Hitters.train , scale=TRUE , validation ="CV")
+validationplot(pcr.fit ,val.type="MSEP")
+```
+
+```{r}
+pcr.pred=predict (pcr.fit ,Hitters.test,ncomp =1)
+mean((pcr.pred -Hitters.test$Salary)^2)
+```
+
+Podemos ver que el MSE por boosting es menor que el dado por la regresión lineal y componentes principales.
+
+(f)
+
+```{r}
+boost.hitters <- gbm(Salary ~ ., data = Hitters.train, distribution = "gaussian", n.trees = 1000, shrinkage = lambdas[which.min(mse2)])
+summary(boost.hitters)
+```
+
+La variable CatBat es la más importante.
+
+(g)
+
+```{r}
+bag.hitters <- randomForest(Salary ~ ., data = Hitters.train, mtry = 19)
+yhat.bag <- predict(bag.hitters, newdata = Hitters.test)
+mean((yhat.bag - Hitters.test$Salary)^2)
+```
+
+Podemos ver que el MSE fue de 0.007 lo cual significa que es mucho mejor que los probados hasta ahora.
+
 #### 11
+
+(a)
+
+```{r}
+train <- 1:1000
+Caravan$Purchase <- ifelse(Caravan$Purchase == "Yes", 1, 0)
+Caravan.train <- Caravan[train, ]
+Caravan.test <- Caravan[-train, ]
+```
+
+(b)
+
+```{r}
+bc <- gbm(Purchase ~ ., data = Caravan.train, distribution = "gaussian", n.trees = 1000, shrinkage = 0.01)
+summary(bc)
+```
+
+Las variables PPERSAUT y MKOOPKLA son las más importantes
+
+(c)
+
+```{r}
+probs.test <- predict(bc, Caravan.test, n.trees = 1000, type = "response")
+pred.test <- ifelse(probs.test > 0.2, 1, 0)
+matriz <- confusionMatrix(as.factor(pred.test), as.factor(Caravan.test$Purchase))
+matriz
+```
+
+Vemos que la predicción de personas que en realidad harán la compra tiene una precisión del 3.46%
+
+```{r}
+logit.caravan <- glm(Purchase ~ ., data = Caravan.train, family = "binomial")
+probs.test2 <- predict(logit.caravan, Caravan.test, type = "response")
+pred.test2 <- ifelse(probs.test > 0.2, 1, 0)
+matriz <- confusionMatrix(as.factor(pred.test2), as.factor(Caravan.test$Purchase))
+matriz
+```
+
+Vemos que usando una regresión logística la precisión del modelo a la hora de predecir personas que realmente realizaron la compra es de un 3.46%
+
 #### 12
+
+(a)
+
+Se usará la base de datos 'Smarket', el cual representa los porcentajes diarios de rendimiento para el índice bursátil S&P 500 entre 2001 y 2005. En este se intentará predecir la variable 'Direction'
+
+```{r}
+train <- sample(nrow(Weekly), nrow(Weekly)*0.7)
+Weekly$Direction <- ifelse(Weekly$Direction == "Up", 1, 0)
+Weekly.train <- Weekly[train, ]
+Weekly.test <- Weekly[-train, ]
+```
+
+- Aplicando boosting
+
+```{r}
+bf <- gbm(Direction ~ . - Year - Today, data = Weekly.train, distribution = "bernoulli", n.trees = 5000)
+bprobs <- predict(bf, newdata = Weekly.test, n.trees = 5000)
+bpred <- ifelse(bprobs > 0.5, 1, 0)
+matriz <- confusionMatrix(as.factor(bpred), as.factor(Weekly.test$Direction))
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+
+- Aplicando bagging
+
+```{r}
+bagf <- randomForest(Direction ~ . - Year - Today, data = Weekly.train, mtry = 6)
+bagprobs <- predict(bagf, newdata = Weekly.test)
+bagpred <- ifelse(bagprobs > 0.5, 1, 0)
+matriz <- confusionMatrix(as.factor(bagpred), as.factor(Weekly.test$Direction))
+matriz$table
+```
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+- Aplicando random Forest
+
+```{r}
+rff <- randomForest(Direction ~ . - Year - Today, data = Weekly.train, mtry = 2)
+rfprobs <- predict(rff, newdata = Weekly.test)
+rfpred <- ifelse(rfprobs > 0.5, 1, 0)
+matriz <- confusionMatrix(as.factor(rfpred), as.factor(Weekly.test$Direction))
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+- Regresión logística
+
+```{r}
+logf <- glm(Direction ~ . - Year - Today, data = Weekly.train, family = "binomial")
+logprobs <- predict(logf, newdata = Weekly.test, type = "response")
+logpred <- ifelse(logprobs > 0.5, 1, 0)
+matriz <- confusionMatrix(as.factor(logpred), as.factor(Weekly.test$Direction))
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+- Regresión lineal
+
+```{r}
+lmf <- lm(Direction ~ . - Year - Today, data = Weekly.train)
+lmprob <- predict(lmf, Weekly.test)
+lmpred <- ifelse(lmprob > 0.5, 1, 0)
+matriz <- confusionMatrix(as.factor(lmpred), as.factor(Weekly.test$Direction))
+matriz$table
+```
+
+```{r, echo=FALSE}
+imprimirASS(matriz)
+```
+
+En general no se encuentran grandes diferencias entre ellos, pero de estos propuestos, el que mejor resultados da es el bagging con un accuraccy de 54.74%
 
 ### Capitulo 9 {.tabset .tabset-fade .tabset-pills}
 
