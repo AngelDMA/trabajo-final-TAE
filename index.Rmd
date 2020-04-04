@@ -1551,7 +1551,7 @@ Podemos ver que en este caso el mejor costo fue dado por $c=1$, con 92 errores a
 
 Podemos apreciar que aunque el costo en ambos casos fue diferente, realmente no difiere demasiado, ya que a partir de un costo de 0.001 no se presentan grandes cambios en los errores, 
 
-#### 7
+  #### 7
 
 (a)
 
@@ -1913,4 +1913,28 @@ a
 Podemos ver como el polinomial usando el mejor costo es el que ofrece un mejor resultado de entrenamiento pero el lineal es el que tiene menor error de prueba  
 
 ### Ensayo
+
+Medellín es una ciudad la cual debido a su crecimiento poblacional y posición geográfica, presenta en general unos altos índices de contaminación, en particular, en algunas épocas del año esta crisis ambiental se agudiza. Más del 80% de las personas que viven en áreas urbanas que monitorean la contaminación del aire están expuestas a niveles de calidad del aire que exceden los límites de la Organización Mundial de la Salud (OMS, 2016). Esto hace necesario que se busquen mecanismos que ayuden a mejorar la problemática de la calidad del aire.
+
+Por un lado tenemos que debido a la topografía de Medellín, y en general del valle de Aburrá, en épocas del año en donde las condiciones climáticas son propicias para que el aire no pueda calentarse lo suficiente, y en consecuencia no pueda ascender para que esta sea arrastrado fuera del Valle por los vientos alisios. Desde este punto de vista, es importante profundizar en la investigación de los modelos predictivos meteorológicos, los cuales, al poder darnos alertas mucho más precisas, podrían usarse para tomar medidas oportunas y no especulativas de cara a afrontar el problema.
+
+Para llevar esto a cabo se puede tomar como referencia al trabajo realizado por Y. Zheng et al. en el año 2015, en donde pronosticaron la lectura de una estación de monitoreo de la calidad del aire de las siguientes 48 horas utilizando un modelo basado en datos (data-driven). Este sistema cuenta con un predictor de regresión lineal para modelar los factores locales de la calidad del aire. Para modelar los factores globales se usa una red neuronal, el cual es un predictor espacial. También cuenta con un agregador dinámico el cual combina las predicciones de los predictores teniendo en cuenta también los datos metereológicos y por último cuenta con un predictor para capturar los cambios repentinos en la calidad del aire.
+
+Pero para esto tal y como subrayan en el año 2017 Kaur et al. existe una necesidad por mejorar la toma de información, ya que en definitiva, de esta dependen todos los modelos que se planteen. En este apartado es importante que Medellín cuente con un sistema de medición en tiempo real en donde no solo se monitoreen algunas áreas de la ciudad, si no donde podamos tener un entendimiento de que es lo que está ocurriendo realmente en las diferentes calles de Medellín, para esto podríamos usar diferentes dispositivos ayudándonos del internet de las cosas. Uno de estos ejemplos lo presenta Wooden en el año 2019, en donde nos muestra como Intel y Bosch desarrollaron un sistema al que denominaron The Intel®-based Bosch Air Quality Micro Climate Monitoring System (MCMS), el cual sin ocupar mucho espacio, podría usarse en diferentes zonas de la ciudad, para saber no solamente, si en general en Medellín hay mucha contaminación, si no en qué lugares específicamente es donde más contaminación se está presentando, en que calles en específico y a que horas del día, para poder tomar más medidas en estos lugares, ya que la contaminación que allí se genera termina teniendo un impacto en una zona mucho más amplia y afecta directamente a una gran parte de la población.  Esto no solo ayudaría a tomar medidas, si no que permitiría evaluarlas para saber si realmente  estas eran el problema principal.
+
+
+- Referencias:
+
+
+Organización Mundial de la Salud. (2016). Ambient Air Pollution: A global assessment of exposure and burden of disease. World Health Organization, 1–131. Retrieved from www.who.int.org
+
+
+Y. Zheng, X. Yi, M. Li, R. Li, Z. Shan, E. Chang and T. Li, “Forecasting Fine-Grained Air Quality Based on Big Data,” Proceeding KDD '15 Proceedings of the 21th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, pp. 2267-2276, August 10, 2015.
+
+
+Kaur, Gaganjot & Gao, Jerry & Chiao, Sen & Lu, Shengqiang & Xie, Gang. (2017). Air Quality Prediction: Big data and Machine Learning Approaches. 
+
+
+Wooden, A. (2019). Tackling air pollution with big data analytics. Intel. Recuperado de https://www.intel.co.uk
+
 
